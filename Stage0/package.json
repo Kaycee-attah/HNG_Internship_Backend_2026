@@ -1,0 +1,21 @@
+{
+  "name": "hng-stage0",
+  "version": "1.0.0",
+  "description": "HNG Internship 2026 — Backend Stage 0: Name Gender Classification API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}
