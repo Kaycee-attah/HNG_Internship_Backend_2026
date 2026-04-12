@@ -12,11 +12,19 @@ app.use(express.json());
 app.get("/api/classify", async (req, res) => {
   const { name } = req.query;
 
-  // 400 — missing or empty name
-  if (name === undefined || name === "") {
+  // 400 — missing name
+if (name === undefined) {
+  return res.status(400).json({
+    status: "error",
+    message: "Missing 'name' query parameter",
+  });
+}
+
+  // 400 — empty name
+  if (name === "") {
     return res.status(400).json({
       status: "error",
-      message: "Missing or empty 'name' query parameter",
+      message: "'name' query parameter cannot be empty",
     });
   }
 
