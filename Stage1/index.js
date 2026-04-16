@@ -88,17 +88,26 @@ app.post("/api/profiles", async (req, res) => {
     });
   }
 
-  // Call all three APIs concurrently
-  let genderData, agifyData, nationalizeData;
-  try {
-    [genderData, agifyData, nationalizeData] = await Promise.all([
-      axios.get(`https://api.genderize.io?name=${encodeURIComponent(name)}`, { timeout: 5000 }).then(r => r.data),
-      axios.get(`https://api.agify.io?name=${encodeURIComponent(name)}`, { timeout: 5000 }).then(r => r.data),
-      axios.get(`https://api.nationalize.io?name=${encodeURIComponent(name)}`, { timeout: 5000 }).then(r => r.data),
-    ]);
-  } catch (err) {
-    return res.status(502).json({ status: "502", message: "Failed to reach an external API" });
+  // Call all three APIs concurrently, identifying which one fails
+  const [genderResult, agifyResult, nationalizeResult] = await Promise.allSettled([
+    axios.get(`https://api.genderize.io?name=${encodeURIComponent(name)}`, { timeout: 5000 }).then(r => r.data),
+    axios.get(`https://api.agify.io?name=${encodeURIComponent(name)}`, { timeout: 5000 }).then(r => r.data),
+    axios.get(`https://api.nationalize.io?name=${encodeURIComponent(name)}`, { timeout: 5000 }).then(r => r.data),
+  ]);
+
+  if (genderResult.status === "rejected") {
+    return res.status(502).json({ status: "502", message: "Genderize returned an invalid response" });
   }
+  if (agifyResult.status === "rejected") {
+    return res.status(502).json({ status: "502", message: "Agify returned an invalid response" });
+  }
+  if (nationalizeResult.status === "rejected") {
+    return res.status(502).json({ status: "502", message: "Nationalize returned an invalid response" });
+  }
+
+  const genderData = genderResult.value;
+  const agifyData = agifyResult.value;
+  const nationalizeData = nationalizeResult.value;
 
   // Validate Genderize
   if (!genderData.gender || genderData.count === 0) {
