@@ -17,16 +17,16 @@ const pool = new Pool({
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS profiles (
-      id            TEXT PRIMARY KEY,
-      name          TEXT UNIQUE NOT NULL,
-      gender        TEXT,
-      gender_probability NUMERIC,
-      sample_size   INTEGER,
-      age           INTEGER,
-      age_group     TEXT,
-      country_id    TEXT,
+      id                  TEXT PRIMARY KEY,
+      name                TEXT UNIQUE NOT NULL,
+      gender              TEXT,
+      gender_probability  NUMERIC,
+      sample_size         INTEGER,
+      age                 INTEGER,
+      age_group           TEXT,
+      country_id          TEXT,
       country_probability NUMERIC,
-      created_at    TIMESTAMPTZ DEFAULT NOW()
+      created_at          TIMESTAMPTZ DEFAULT NOW()
     )
   `);
   console.log("Database ready");
@@ -44,6 +44,7 @@ function classifyAge(age) {
   return "senior";
 }
 
+// Full profile — used for POST and GET /:id
 function formatProfile(row) {
   return {
     id: row.id,
@@ -56,6 +57,18 @@ function formatProfile(row) {
     country_id: row.country_id,
     country_probability: parseFloat(row.country_probability),
     created_at: new Date(row.created_at).toISOString(),
+  };
+}
+
+// Slim profile — used for GET /api/profiles list (matches spec exactly)
+function formatProfileList(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    gender: row.gender,
+    age: parseInt(row.age),
+    age_group: row.age_group,
+    country_id: row.country_id,
   };
 }
 
@@ -96,13 +109,13 @@ app.post("/api/profiles", async (req, res) => {
   ]);
 
   if (genderResult.status === "rejected") {
-    return res.status(502).json({ status: "502", message: "Genderize returned an invalid response" });
+    return res.status(502).json({ status: "error", message: "Genderize returned an invalid response" });
   }
   if (agifyResult.status === "rejected") {
-    return res.status(502).json({ status: "502", message: "Agify returned an invalid response" });
+    return res.status(502).json({ status: "error", message: "Agify returned an invalid response" });
   }
   if (nationalizeResult.status === "rejected") {
-    return res.status(502).json({ status: "502", message: "Nationalize returned an invalid response" });
+    return res.status(502).json({ status: "error", message: "Nationalize returned an invalid response" });
   }
 
   const genderData = genderResult.value;
@@ -111,17 +124,17 @@ app.post("/api/profiles", async (req, res) => {
 
   // Validate Genderize
   if (!genderData.gender || genderData.count === 0) {
-    return res.status(502).json({ status: "502", message: "Genderize returned an invalid response" });
+    return res.status(502).json({ status: "error", message: "Genderize returned an invalid response" });
   }
 
   // Validate Agify
   if (agifyData.age === null || agifyData.age === undefined) {
-    return res.status(502).json({ status: "502", message: "Agify returned an invalid response" });
+    return res.status(502).json({ status: "error", message: "Agify returned an invalid response" });
   }
 
   // Validate Nationalize
   if (!nationalizeData.country || nationalizeData.country.length === 0) {
-    return res.status(502).json({ status: "502", message: "Nationalize returned an invalid response" });
+    return res.status(502).json({ status: "error", message: "Nationalize returned an invalid response" });
   }
 
   // Process data
@@ -155,7 +168,7 @@ app.post("/api/profiles", async (req, res) => {
   });
 });
 
-// GET /api/profiles — list with optional filters
+// GET /api/profiles — list with optional filters (slim response)
 app.get("/api/profiles", async (req, res) => {
   const { gender, country_id, age_group } = req.query;
 
@@ -182,11 +195,11 @@ app.get("/api/profiles", async (req, res) => {
   return res.status(200).json({
     status: "success",
     count: result.rows.length,
-    data: result.rows.map(formatProfile),
+    data: result.rows.map(formatProfileList),
   });
 });
 
-// GET /api/profiles/:id
+// GET /api/profiles/:id — full response
 app.get("/api/profiles/:id", async (req, res) => {
   const { id } = req.params;
 
